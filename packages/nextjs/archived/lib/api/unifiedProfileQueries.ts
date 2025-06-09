@@ -1,0 +1,576 @@
+import { getSupabaseClient } from '../supabase';
+
+// Type definitions for the unified identity system
+export interface IdentityProfile {
+  id: string;
+  wallet_address: string;
+  normalized_wallet: string;
+  username: string | null;
+  display_name: string | null;
+  bio: string | null;
+  profile_image_url: string | null;
+  banner_image_url: string | null;
+  email: string | null;
+  ens_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SocialLink {
+  id: string;
+  wallet_address: string;
+  platform: string;
+  url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Follow {
+  id: string;
+  follower_wallet: string;
+  followed_wallet: string;
+  created_at: string;
+}
+
+// Helper function to get Supabase client
+function getClient(useServiceRole = true) {
+  console.log(`[DEBUG CLIENT] Getting Supabase client with useServiceRole=${useServiceRole}`);
+  const client = getSupabaseClient(useServiceRole);
+  if (!client) {
+    console.error('[DEBUG CLIENT] Failed to get Supabase client. Check your environment variables.');
+    throw new Error('Failed to get Supabase client. Check your environment variables.');
+  }
+  console.log('[DEBUG CLIENT] Successfully got Supabase client');
+  return client;
+}
+
+// Helper function to normalize wallet address
+function normalizeWalletAddress(walletAddress: string): string {
+  return walletAddress.toLowerCase();
+}
+
+// Enhanced user profiles API
+export const enhancedUserProfiles = {
+  // Get a user profile by wallet address
+  async getByWalletAddress(walletAddress: string): Promise<IdentityProfile | null> {
+    try {
+      const normalizedWallet = normalizeWalletAddress(walletAddress);
+      const client = getClient();
+      
+      // First, check if the identity_registry table exists
+      try {
+        const { data, error } = await client
+          .from('identity_registry')
+          .select('*')
+          .eq('normalized_wallet', normalizedWallet)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Error fetching from identity_registry:', error);
+          // If the table doesn't exist, try to create it
+          if (error.message && error.message.includes('does not exist')) {
+            console.log('identity_registry table does not exist, attempting to create it');
+            
+            // Call the setup endpoint to create the table
+            const response = await fetch('/api/setup-identity-registry', {
+              method: 'POST',
+            });
+            
+            if (!response.ok) {
+              console.error('Failed to create identity_registry table:', await response.text());
+              return null;
+            }
+            
+            // Try again after creating the table
+            const { data: retryData, error: retryError } = await client
+              .from('identity_registry')
+              .select('*')
+              .eq('normalized_wallet', normalizedWallet)
+              .maybeSingle();
+            
+            if (retryError) {
+              console.error('Error fetching from identity_registry after creation:', retryError);
+              return null;
+            }
+            
+            return retryData;
+          }
+          
+          return null;
+        }
+        
+        return data;
+      } catch (error) {
+        console.error('Unexpected error fetching user profile:', error);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching user profile by wallet address:', error);
+      return null;
+    }
+  },
+  
+  // Get a user profile by username
+  async getByUsername(username: string): Promise<IdentityProfile | null> {
+    try {
+      const client = getClient();
+      
+      // First, check if the identity_registry table exists
+      try {
+        const { data, error } = await client
+          .from('identity_registry')
+          .select('*')
+          .eq('username', username)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Error fetching from identity_registry by username:', error);
+          // If the table doesn't exist, try to create it
+          if (error.message && error.message.includes('does not exist')) {
+            console.log('identity_registry table does not exist, attempting to create it');
+            
+            // Call the setup endpoint to create the table
+            const response = await fetch('/api/setup-identity-registry', {
+              method: 'POST',
+            });
+            
+            if (!response.ok) {
+              console.error('Failed to create identity_registry table:', await response.text());
+              return null;
+            }
+            
+            // Try again after creating the table
+            const { data: retryData, error: retryError } = await client
+              .from('identity_registry')
+              .select('*')
+              .eq('username', username)
+              .maybeSingle();
+            
+            if (retryError) {
+              console.error('Error fetching from identity_registry by username after creation:', retryError);
+              return null;
+            }
+            
+            return retryData;
+          }
+          
+          return null;
+        }
+        
+        return data;
+      } catch (error) {
+        console.error('Unexpected error fetching user profile by username:', error);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching user profile by username:', error);
+      return null;
+    }
+  },
+  
+  // Update a user profile
+  async update(walletAddress: string, data: Partial<IdentityProfile>): Promise<IdentityProfile | null> {
+    try {
+      const normalizedWallet = normalizeWalletAddress(walletAddress);
+      const client = getClient(true); // Use service role for updates
+      
+      // Extract only the fields that should be updated
+      const updateData = {
+        username: data.username,
+        display_name: data.display_name,
+        bio: data.bio,
+        profile_image_url: data.profile_image_url,
+        banner_image_url: data.banner_image_url,
+        email: data.email,
+        ens_name: data.ens_name
+      };
+      
+      try {
+        const { data: updatedProfile, error } = await client
+          .from('identity_registry')
+          .update(updateData)
+          .eq('normalized_wallet', normalizedWallet)
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('Error updating profile:', error);
+          // If the table doesn't exist, try to create it
+          if (error.message && error.message.includes('does not exist')) {
+            console.log('identity_registry table does not exist, attempting to create it');
+            
+            // Call the setup endpoint to create the table
+            const response = await fetch('/api/setup-identity-registry', {
+              method: 'POST',
+            });
+            
+            if (!response.ok) {
+              console.error('Failed to create identity_registry table:', await response.text());
+              return null;
+            }
+            
+            // After creating the table, we need to create the profile first
+            const createResult = await this.create({
+              wallet_address: walletAddress,
+              ...data
+            });
+            
+            return createResult;
+          }
+          
+          throw error;
+        }
+        
+        return updatedProfile;
+      } catch (innerError) {
+        console.error('Error in profile update process:', innerError);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      return null;
+    }
+  },
+  
+  // Create a new user profile
+  async create(data: Partial<IdentityProfile>): Promise<IdentityProfile | null> {
+    try {
+      const client = getClient(true); // Use service role for creation
+      
+      // Ensure wallet_address is provided
+      if (!data.wallet_address) {
+        throw new Error('wallet_address is required');
+      }
+      
+      // Normalize wallet address
+      const normalizedWallet = normalizeWalletAddress(data.wallet_address);
+      
+      try {
+        // Check if profile already exists
+        const { data: existingProfile, error: checkError } = await client
+          .from('identity_registry')
+          .select('id')
+          .eq('normalized_wallet', normalizedWallet)
+          .maybeSingle();
+        
+        if (checkError) {
+          console.error('Error checking if profile exists:', checkError);
+          // If the table doesn't exist, try to create it
+          if (checkError.message && checkError.message.includes('does not exist')) {
+            console.log('identity_registry table does not exist, attempting to create it');
+            
+            // Call the setup endpoint to create the table
+            const response = await fetch('/api/setup-identity-registry', {
+              method: 'POST',
+            });
+            
+            if (!response.ok) {
+              console.error('Failed to create identity_registry table:', await response.text());
+              return null;
+            }
+          } else {
+            return null;
+          }
+        } else if (existingProfile) {
+          throw new Error('Profile already exists for this wallet address');
+        }
+        
+        // Create new profile
+        const { data: newProfile, error } = await client
+          .from('identity_registry')
+          .insert([{
+            ...data,
+            normalized_wallet: normalizedWallet
+          }])
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('Error creating profile:', error);
+          throw error;
+        }
+        
+        return newProfile;
+      } catch (innerError) {
+        console.error('Error in profile creation process:', innerError);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error creating user profile:', error);
+      return null;
+    }
+  },
+  
+  // Check if a username is available
+  async isUsernameAvailable(username: string): Promise<boolean> {
+    try {
+      const client = getClient();
+      
+      try {
+        const { data, error } = await client
+          .from('identity_registry')
+          .select('id')
+          .eq('username', username)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Error checking username availability:', error);
+          // If the table doesn't exist, try to create it
+          if (error.message && error.message.includes('does not exist')) {
+            console.log('identity_registry table does not exist, attempting to create it');
+            
+            // Call the setup endpoint to create the table
+            const response = await fetch('/api/setup-identity-registry', {
+              method: 'POST',
+            });
+            
+            if (!response.ok) {
+              console.error('Failed to create identity_registry table:', await response.text());
+              return true; // Assume username is available if we can't check
+            }
+            
+            // Try again after creating the table
+            const { data: retryData, error: retryError } = await client
+              .from('identity_registry')
+              .select('id')
+              .eq('username', username)
+              .maybeSingle();
+            
+            if (retryError) {
+              console.error('Error checking username availability after table creation:', retryError);
+              return true; // Assume username is available if we can't check
+            }
+            
+            return !retryData; // Username is available if no profile is found
+          }
+          
+          return true; // Assume username is available if we can't check
+        }
+        
+        return !data; // Username is available if no profile is found
+      } catch (error) {
+        console.error('Unexpected error checking username availability:', error);
+        return true; // Assume username is available if we can't check
+      }
+    } catch (error) {
+      console.error('Error checking username availability:', error);
+      return true; // Assume username is available if we can't check
+    }
+  },
+  
+  // Get a user's followers
+  async getFollowers(walletAddress: string): Promise<IdentityProfile[]> {
+    try {
+      const normalizedWallet = normalizeWalletAddress(walletAddress);
+      const client = getClient();
+      
+      const { data, error } = await client
+        .from('follows')
+        .select(`
+          follower_wallet,
+          follower:identity_registry!follower_wallet(*)
+        `)
+        .eq('followed_wallet', normalizedWallet);
+      
+      if (error) throw error;
+      
+      // Extract follower profiles
+      return (data || []).map(item => item.follower) as unknown as IdentityProfile[];
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+      return [];
+    }
+  },
+  
+  // Get users that a user is following
+  async getFollowing(walletAddress: string): Promise<IdentityProfile[]> {
+    try {
+      const normalizedWallet = normalizeWalletAddress(walletAddress);
+      const client = getClient();
+      
+      const { data, error } = await client
+        .from('follows')
+        .select(`
+          followed_wallet,
+          followed:identity_registry!followed_wallet(*)
+        `)
+        .eq('follower_wallet', normalizedWallet);
+      
+      if (error) throw error;
+      
+      // Extract followed profiles
+      return (data || []).map(item => item.followed) as unknown as IdentityProfile[];
+    } catch (error) {
+      console.error('Error fetching following:', error);
+      return [];
+    }
+  },
+  
+  // Follow a user
+  async follow(followerWallet: string, followedWallet: string): Promise<boolean> {
+    try {
+      const normalizedFollowerWallet = normalizeWalletAddress(followerWallet);
+      const normalizedFollowedWallet = normalizeWalletAddress(followedWallet);
+      const client = getClient(true); // Use service role for follows
+      
+      // Check if already following
+      const { data: existingFollow } = await client
+        .from('follows')
+        .select('id')
+        .eq('follower_wallet', normalizedFollowerWallet)
+        .eq('followed_wallet', normalizedFollowedWallet)
+        .maybeSingle();
+      
+      if (existingFollow) {
+        return true; // Already following
+      }
+      
+      // Create follow relationship
+      const { error } = await client
+        .from('follows')
+        .insert([{
+          follower_wallet: normalizedFollowerWallet,
+          followed_wallet: normalizedFollowedWallet
+        }]);
+      
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error following user:', error);
+      return false;
+    }
+  },
+  
+  // Unfollow a user
+  async unfollow(followerWallet: string, followedWallet: string): Promise<boolean> {
+    try {
+      const normalizedFollowerWallet = normalizeWalletAddress(followerWallet);
+      const normalizedFollowedWallet = normalizeWalletAddress(followedWallet);
+      const client = getClient(true); // Use service role for unfollows
+      
+      const { error } = await client
+        .from('follows')
+        .delete()
+        .eq('follower_wallet', normalizedFollowerWallet)
+        .eq('followed_wallet', normalizedFollowedWallet);
+      
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error unfollowing user:', error);
+      return false;
+    }
+  },
+  
+  // Get social links for a user
+  async getSocialLinks(walletAddress: string): Promise<SocialLink[]> {
+    try {
+      const normalizedWallet = normalizeWalletAddress(walletAddress);
+      const client = getClient();
+      
+      const { data, error } = await client
+        .from('social_links')
+        .select('*')
+        .eq('wallet_address', normalizedWallet);
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching social links:', error);
+      return [];
+    }
+  },
+  
+  // Add a social link
+  async addSocialLink(walletAddress: string, platform: string, url: string): Promise<SocialLink | null> {
+    try {
+      const normalizedWallet = normalizeWalletAddress(walletAddress);
+      const client = getClient(true); // Use service role for adding social links
+      
+      const { data, error } = await client
+        .from('social_links')
+        .insert([{
+          wallet_address: normalizedWallet,
+          platform,
+          url
+        }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error adding social link:', error);
+      return null;
+    }
+  },
+  
+  // Remove a social link
+  async removeSocialLink(id: string): Promise<boolean> {
+    try {
+      const client = getClient(true); // Use service role for removing social links
+      
+      const { error } = await client
+        .from('social_links')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error removing social link:', error);
+      return false;
+    }
+  },
+  
+  // Backward compatibility: Get primary wallet by user ID
+  async getPrimaryWalletByUserId(userId: string): Promise<string | null> {
+    try {
+      // In the unified system, the user ID is the wallet address
+      return userId;
+    } catch (error) {
+      console.error('Error getting primary wallet by user ID:', error);
+      return null;
+    }
+  },
+  
+  // Register a wallet in the identity registry
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async registerWallet(walletAddress: string, userId: string): Promise<boolean> {
+    // userId is kept for backward compatibility with the old API
+    try {
+      const normalizedWallet = normalizeWalletAddress(walletAddress);
+      const client = getClient(true); // Use service role for creation
+      
+      // Check if profile already exists
+      const { data: existingProfile } = await client
+        .from('identity_registry')
+        .select('id')
+        .eq('normalized_wallet', normalizedWallet)
+        .maybeSingle();
+      
+      if (existingProfile) {
+        console.log('Profile already exists for this wallet address');
+        return true;
+      }
+      
+      // Create new profile
+      const { error } = await client
+        .from('identity_registry')
+        .insert([{
+          wallet_address: walletAddress,
+          normalized_wallet: normalizedWallet,
+          // We don't set username or other fields here, they will be set later
+        }]);
+      
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error registering wallet in identity registry:', error);
+      return false;
+    }
+  }
+};
+
+// Export the enhanced user profiles API as the default implementation
+export default enhancedUserProfiles;

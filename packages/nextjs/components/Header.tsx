@@ -4,9 +4,11 @@ import React, { useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAccount } from "wagmi";
 import { hardhat } from "viem/chains";
-import { Bars3Icon, BugAntIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, BugAntIcon, UserIcon, UsersIcon, PlusCircleIcon } from "@heroicons/react/24/outline";
 import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
+import { CreateAccountButton } from "./profile/CreateAccountButton";
 import { useOutsideClick, useTargetNetwork } from "~~/hooks/scaffold-eth";
 
 type HeaderMenuLink = {
@@ -15,21 +17,42 @@ type HeaderMenuLink = {
   icon?: React.ReactNode;
 };
 
-export const menuLinks: HeaderMenuLink[] = [
+// Static menu links that don't depend on user state
+const staticMenuLinks: HeaderMenuLink[] = [
   {
     label: "Home",
     href: "/",
   },
-
   {
-    label: "Debug Contracts",
+    label: "Debug",
     href: "/debug",
     icon: <BugAntIcon className="h-4 w-4" />,
   },
+  {
+    label: "Community",
+    href: "/community",
+    icon: <UsersIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Register",
+    href: "/register",
+    icon: <PlusCircleIcon className="h-4 w-4" />,
+  },
 ];
 
-export const HeaderMenuLinks = () => {
+const HeaderMenuLinks = () => {
   const pathname = usePathname();
+  const { address } = useAccount();
+  
+  // Combine static links with dynamic links that depend on user state
+  const menuLinks = [
+    ...staticMenuLinks,
+    {
+      label: "Profile",
+      href: address ? `/profile/${address}` : "/profile",
+      icon: <UserIcon className="h-4 w-4" />,
+    },
+  ];
 
   return (
     <>
@@ -93,13 +116,13 @@ export const Header = () => {
             </ul>
           )}
         </div>
-        <Link href="/" passHref className="hidden lg:flex items-center gap-2 ml-4 mr-6 shrink-0">
+        <Link href="/" passHref className="hidden lg:flex items-center gap-2 ml-4 mr-6">
           <div className="flex relative w-10 h-10">
             <Image alt="SE2 logo" className="cursor-pointer" fill src="/logo.svg" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold leading-tight">Scaffold-ETH</span>
-            <span className="text-xs">Ethereum dev stack</span>
+            <span className="font-bold leading-tight">CarStarz</span>
+            <span className="text-xs">Vehicle Registry</span>
           </div>
         </Link>
         <ul className="hidden lg:flex lg:flex-nowrap menu menu-horizontal px-1 gap-2">
@@ -108,6 +131,12 @@ export const Header = () => {
       </div>
       <div className="navbar-end flex-grow mr-4">
         <RainbowKitCustomConnectButton />
+        <div className="ml-2">
+          <CreateAccountButton
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            buttonText="Create Profile"
+          />
+        </div>
         {isLocalNetwork && <FaucetButton />}
       </div>
     </div>

@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: process.env.NEXT_PUBLIC_IGNORE_BUILD_ERROR === "true",
   },
+  images: {
+    domains: ['ksgwenadavjvakpdhhzi.supabase.co'],
+  },
   webpack: config => {
     config.resolve.fallback = { fs: false, net: false, tls: false };
     config.externals.push("pino-pretty", "lokijs", "encoding");
@@ -21,7 +24,9 @@ const isIpfs = process.env.NEXT_PUBLIC_IPFS_BUILD === "true";
 if (isIpfs) {
   nextConfig.output = "export";
   nextConfig.trailingSlash = true;
+  // Preserve the domains configuration while setting unoptimized to true
   nextConfig.images = {
+    ...nextConfig.images,
     unoptimized: true,
   };
 }

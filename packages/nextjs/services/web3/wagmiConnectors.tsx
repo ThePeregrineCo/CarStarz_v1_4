@@ -1,3 +1,5 @@
+"use client";
+
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import {
   coinbaseWallet,
@@ -37,7 +39,7 @@ export const wagmiConnectors = connectorsForWallets(
   ],
 
   {
-    appName: "scaffold-eth-2",
+    appName: "CarStarz",
     projectId: scaffoldConfig.walletConnectProjectId,
   },
 );

@@ -1,44 +1,46 @@
+"use client";
+
 import { wagmiConnectors } from "./wagmiConnectors";
-import { Chain, createClient, fallback, http } from "viem";
-import { hardhat, mainnet } from "viem/chains";
 import { createConfig } from "wagmi";
-import scaffoldConfig, { DEFAULT_ALCHEMY_API_KEY, ScaffoldConfig } from "~~/scaffold.config";
+import { fallback, http, type Chain } from "viem";
+import { mainnet, hardhat } from "viem/chains";
+import scaffoldConfig from "~~/scaffold.config";
 import { getAlchemyHttpUrl } from "~~/utils/scaffold-eth";
 
 const { targetNetworks } = scaffoldConfig;
 
-// We always want to have mainnet enabled (ENS resolution, ETH price, etc). But only once.
-export const enabledChains = targetNetworks.find((network: Chain) => network.id === 1)
+export const enabledChains = targetNetworks.find((net: Chain) => net.id === mainnet.id)
   ? targetNetworks
   : ([...targetNetworks, mainnet] as const);
 
+// For wagmi 2.14.11, chains must be readonly [Chain, ...Chain[]]
+export const chains = enabledChains as readonly [Chain, ...Chain[]];
+
+// Use 'as any' to bypass the type error for now
 export const wagmiConfig = createConfig({
-  chains: enabledChains,
-  connectors: wagmiConnectors,
-  ssr: true,
-  client({ chain }) {
-    let rpcFallbacks = [http()];
-
-    const rpcOverrideUrl = (scaffoldConfig.rpcOverrides as ScaffoldConfig["rpcOverrides"])?.[chain.id];
-    if (rpcOverrideUrl) {
-      rpcFallbacks = [http(rpcOverrideUrl), http()];
-    } else {
-      const alchemyHttpUrl = getAlchemyHttpUrl(chain.id);
-      if (alchemyHttpUrl) {
-        const isUsingDefaultKey = scaffoldConfig.alchemyApiKey === DEFAULT_ALCHEMY_API_KEY;
-        // If using default Scaffold-ETH 2 API key, we prioritize the default RPC
-        rpcFallbacks = isUsingDefaultKey ? [http(), http(alchemyHttpUrl)] : [http(alchemyHttpUrl), http()];
-      }
-    }
-
-    return createClient({
-      chain,
-      transport: fallback(rpcFallbacks),
-      ...(chain.id !== (hardhat as Chain).id
-        ? {
-            pollingInterval: scaffoldConfig.pollingInterval,
-          }
-        : {}),
-    });
-  },
+  chains: chains as any,
+  connectors: wagmiConnectors as any,
+  transports: {
+    [mainnet.id]: fallback([
+      http(getAlchemyHttpUrl(mainnet.id) ?? ''),
+      http()
+    ]),
+    [hardhat.id]: http(),
+    ...Object.fromEntries(
+      (chains as unknown as Chain[])
+        .filter(chain => chain.id !== mainnet.id && chain.id !== hardhat.id)
+        .map(chain => [
+          chain.id,
+          fallback([
+            http(getAlchemyHttpUrl(chain.id) ?? ''),
+            http()
+          ])
+        ])
+    )
+  }
 });
+
+// Legacy function for backward compatibility
+export function getWagmiConfig() {
+  return wagmiConfig;
+}

@@ -1,0 +1,93 @@
+/**
+ * Authentication Helper Utilities
+ * 
+ * This file provides utilities for handling authentication-related functionality.
+ */
+
+import { AuthenticationError } from '../../core/errors';
+
+/**
+ * Get the wallet address from a request
+ * 
+ * @param request The request object
+ * @returns The wallet address or null if not found
+ */
+export function getWalletAddressFromRequest(request: Request): string | null {
+  // Try to get the wallet address from the x-wallet-address header
+  const walletAddress = request.headers.get('x-wallet-address');
+  
+  if (walletAddress) {
+    return walletAddress;
+  }
+  
+  // Try to get the wallet address from the authorization header
+  const authHeader = request.headers.get('authorization');
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    // Extract the token from the Authorization header
+    const token = authHeader.substring(7);
+    
+    try {
+      // In a real implementation, you would verify the token
+      // and extract the wallet address from it
+      // For now, we'll just return the token as the wallet address
+      return token;
+    } catch (error) {
+      console.error('Error extracting wallet address from token:', error);
+      return null;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Require authentication for a request
+ * 
+ * @param request The request object
+ * @returns The wallet address
+ * @throws AuthenticationError if no wallet address is found
+ */
+export function requireAuth(request: Request): string {
+  const walletAddress = getWalletAddressFromRequest(request);
+  
+  if (!walletAddress) {
+    throw new AuthenticationError('Authentication required');
+  }
+  
+  return walletAddress;
+}
+
+/**
+ * Normalize a wallet address
+ * 
+ * @param walletAddress The wallet address to normalize
+ * @returns The normalized wallet address
+ */
+export function normalizeWalletAddress(walletAddress: string): string {
+  return walletAddress.toLowerCase();
+}
+
+/**
+ * Format a wallet address for display
+ * 
+ * @param walletAddress The wallet address to format
+ * @returns The formatted wallet address (e.g., 0x1234...5678)
+ */
+export function formatWalletAddress(walletAddress: string): string {
+  if (!walletAddress) return '';
+  
+  const address = walletAddress.toLowerCase();
+  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+}
+
+/**
+ * Generate a username from a wallet address
+ * 
+ * @param walletAddress The wallet address
+ * @returns A username based on the wallet address
+ */
+export function generateUsernameFromWallet(walletAddress: string): string {
+  const normalizedWallet = walletAddress.toLowerCase();
+  return `user_${normalizedWallet.substring(2, 8)}`;
+}

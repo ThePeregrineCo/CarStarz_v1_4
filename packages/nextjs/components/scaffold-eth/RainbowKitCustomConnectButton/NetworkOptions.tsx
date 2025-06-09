@@ -1,48 +1,40 @@
-import { useTheme } from "next-themes";
 import { useAccount, useSwitchChain } from "wagmi";
-import { ArrowsRightLeftIcon } from "@heroicons/react/24/solid";
-import { getNetworkColor } from "~~/hooks/scaffold-eth";
-import { getTargetNetworks } from "~~/utils/scaffold-eth";
+import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
+import { getBlockExplorerAddressLink } from "~~/utils/scaffold-eth";
 
-const allowedNetworks = getTargetNetworks();
-
-type NetworkOptionsProps = {
-  hidden?: boolean;
-};
-
-export const NetworkOptions = ({ hidden = false }: NetworkOptionsProps) => {
-  const { switchChain } = useSwitchChain();
+export const NetworkOptions = () => {
+  const { targetNetwork } = useTargetNetwork();
   const { chain } = useAccount();
-  const { resolvedTheme } = useTheme();
-  const isDarkMode = resolvedTheme === "dark";
+  const { switchChain } = useSwitchChain();
 
   return (
-    <>
-      {allowedNetworks
-        .filter(allowedNetwork => allowedNetwork.id !== chain?.id)
-        .map(allowedNetwork => (
-          <li key={allowedNetwork.id} className={hidden ? "hidden" : ""}>
-            <button
-              className="menu-item btn-sm !rounded-xl flex gap-3 py-3 whitespace-nowrap"
-              type="button"
-              onClick={() => {
-                switchChain?.({ chainId: allowedNetwork.id });
-              }}
-            >
-              <ArrowsRightLeftIcon className="h-6 w-4 ml-2 sm:ml-0" />
-              <span>
-                Switch to{" "}
-                <span
-                  style={{
-                    color: getNetworkColor(allowedNetwork, isDarkMode),
-                  }}
-                >
-                  {allowedNetwork.name}
-                </span>
-              </span>
-            </button>
-          </li>
-        ))}
-    </>
+    <div className="flex flex-col gap-2 p-4 bg-base-200 rounded-lg">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">Network</span>
+        <span className="text-sm">{chain?.name || "Not Connected"}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-sm">Target Network</span>
+        <span className="text-sm">{targetNetwork.name}</span>
+      </div>
+      {chain && chain.id !== targetNetwork.id && (
+        <button
+          className="btn btn-sm btn-primary"
+          onClick={() => switchChain?.({ chainId: targetNetwork.id })}
+        >
+          Switch to {targetNetwork.name}
+        </button>
+      )}
+      {chain && (
+        <a
+          href={getBlockExplorerAddressLink(chain.id, chain.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-sm btn-ghost"
+        >
+          View on Explorer
+        </a>
+      )}
+    </div>
   );
 };

@@ -55,5 +55,15 @@
   "packageManager": "yarn@3.2.3",
   "engines": {
     "node": ">=20.18.3"
+  },
+  "dependencies": {
+    "@rainbow-me/rainbowkit": "2.2.3",
+    "@wagmi/connectors": "^5.8.1",
+    "@wagmi/core": "2.14.0",
+    "burner-connector": "0.0.12",
+    "eventemitter3": "^5.0.1",
+    "mitt": "^3.0.1",
+    "viem": "2.23.0",
+    "wagmi": "2.14.11"
   }
 }

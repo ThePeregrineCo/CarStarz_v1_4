@@ -45,8 +45,8 @@ export const FaucetButton = () => {
     }
   };
 
-  // Render only on local chain
-  if (ConnectedChain?.id !== hardhat.id) {
+  // Render only on local chain and if connected
+  if (!address || ConnectedChain?.id !== hardhat.id) {
     return null;
   }
 

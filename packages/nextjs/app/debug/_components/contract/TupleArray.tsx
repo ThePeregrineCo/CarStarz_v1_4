@@ -1,3 +1,5 @@
+"use client";
+
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { ContractInput } from "./ContractInput";
 import { getFunctionInputKey, getInitialTupleArrayFormState } from "./utilsContract";
@@ -56,8 +58,7 @@ export const TupleArray = ({ abiTupleParameter, setParentForm, parentStateObject
     setParentForm(parentForm => {
       return { ...parentForm, [parentStateObjectKey]: JSON.stringify(argsArray, replacer) };
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(form, replacer)]);
+  }, [form, depth, abiTupleParameter.components, parentStateObjectKey]);
 
   const addInput = () => {
     setAdditionalInputs(previousValue => {

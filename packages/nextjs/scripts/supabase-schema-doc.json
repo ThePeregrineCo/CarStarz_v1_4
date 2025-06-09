@@ -1,0 +1,12 @@
+{
+  "url": "https://ksgwenadavjvakpdhhzi.supabase.co",
+  "timestamp": "2025-06-03T14:34:17.813Z",
+  "tables": {},
+  "missingTables": [
+    "blockchain_events",
+    "vehicle_profiles",
+    "vehicle_media",
+    "identity_registry",
+    "vehicle_audit_log"
+  ]
+}

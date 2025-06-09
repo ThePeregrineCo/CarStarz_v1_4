@@ -178,7 +178,7 @@ export type UseScaffoldWriteConfig<TContractName extends ContractName> = {
   contractName: TContractName;
   chainId?: AllowedChainIds;
   disableSimulate?: boolean;
-  writeContractParams?: UseWriteContractParameters;
+  writeContractParams?: WriteContractParameters;
 };
 
 export type UseScaffoldReadConfig<
@@ -199,13 +199,10 @@ export type UseScaffoldReadConfig<
 export type ScaffoldWriteContractVariables<
   TContractName extends ContractName,
   TFunctionName extends ExtractAbiFunctionNames<ContractAbi<TContractName>, WriteAbiStateMutability>,
-> = IsContractDeclarationMissing<
-  Partial<WriteContractParameters>,
-  {
-    functionName: TFunctionName;
-  } & UseScaffoldArgsParam<TContractName, TFunctionName> &
-    Omit<WriteContractParameters, "chainId" | "abi" | "address" | "functionName" | "args">
->;
+> = {
+  functionName: TFunctionName;
+} & UseScaffoldArgsParam<TContractName, TFunctionName> &
+  Omit<WriteContractParameters, "chainId" | "abi" | "address" | "functionName" | "args">;
 
 type WriteVariables = WriteContractVariables<Abi, string, any[], Config, number>;
 
